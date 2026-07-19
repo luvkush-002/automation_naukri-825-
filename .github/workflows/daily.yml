@@ -1,0 +1,118 @@
+name: Naukri daily
+
+# Runs every day at 09:00 IST (03:30 UTC). GitHub cron is UTC-only.
+# You can also trigger it by hand from the Actions tab (workflow_dispatch).
+on:
+  schedule:
+    - cron: '30 3 * * *'
+  workflow_dispatch: {}
+
+# Never let two daily runs overlap (they'd fight over the shared session).
+concurrency:
+  group: naukri-daily
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      # Persist the logged-in session between daily runs so we don't log in from
+      # scratch every time. Rolling key = each run saves a fresh cache and the
+      # next run restores the newest one.
+      - name: Restore Naukri session
+        uses: actions/cache@v4
+        with:
+          path: storage-state.json
+          key: naukri-session-${{ github.run_id }}
+          restore-keys: |
+            naukri-session-
+
+      # First run (or after the cache expires): seed the session from a secret
+      # you generate locally — see README "Seeding the session secret".
+      - name: Seed session from secret (if no cache)
+        if: ${{ hashFiles('storage-state.json') == '' }}
+        env:
+          STATE_B64: ${{ secrets.NAUKRI_STORAGE_STATE_B64 }}
+        run: |
+          if [ -n "$STATE_B64" ]; then
+            echo "$STATE_B64" | base64 -d > storage-state.json
+            echo "Seeded storage-state.json from NAUKRI_STORAGE_STATE_B64."
+          else
+            echo "::warning::No cached session and no NAUKRI_STORAGE_STATE_B64 secret set — headless login will run and will fail if Naukri asks for OTP/captcha."
+          fi
+
+      # Optional: keep your resume out of the repo by storing it as a base64
+      # secret instead of committing resume.pdf. If the secret is absent we fall
+      # back to the committed file (RESUME_PATH, default resume.pdf).
+      - name: Materialize resume from secret (optional)
+        env:
+          RESUME_PDF_B64: ${{ secrets.RESUME_PDF_B64 }}
+        run: |
+          if [ -n "$RESUME_PDF_B64" ]; then
+            echo "$RESUME_PDF_B64" | base64 -d > resume.pdf
+            echo "Wrote resume.pdf from RESUME_PDF_B64 secret."
+          else
+            echo "No RESUME_PDF_B64 secret set; using committed resume file if present."
+          fi
+
+      - name: Run resume update + auto-apply
+        env:
+          NAUKRI_EMAIL: ${{ secrets.NAUKRI_EMAIL }}
+          NAUKRI_PASSWORD: ${{ secrets.NAUKRI_PASSWORD }}
+          HEADLESS: 'true'
+          RESUME_PATH: ${{ vars.RESUME_PATH || 'resume.pdf' }}
+          # --- Search config (set these as repository Variables; sensible
+          #     defaults live in lib.js if you leave them unset) ---
+          KEYWORDS: ${{ vars.KEYWORDS }}
+          LOCATIONS: ${{ vars.LOCATIONS }}
+          MIN_EXPERIENCE: ${{ vars.MIN_EXPERIENCE }}
+          MAX_EXPERIENCE: ${{ vars.MAX_EXPERIENCE }}
+          POSTED_WITHIN_HOURS: ${{ vars.POSTED_WITHIN_HOURS }}
+          MAX_APPLIES_PER_KEYWORD: ${{ vars.MAX_APPLIES_PER_KEYWORD }}
+          SKIP_EXTERNAL: ${{ vars.SKIP_EXTERNAL }}
+          SKIP_CHATBOT: ${{ vars.SKIP_CHATBOT }}
+          # --- Chatbot profile (only used when SKIP_CHATBOT=false) ---
+          TOTAL_EXPERIENCE_YEARS: ${{ vars.TOTAL_EXPERIENCE_YEARS }}
+          NOTICE_PERIOD: ${{ vars.NOTICE_PERIOD }}
+          NOTICE_NEGOTIABLE: ${{ vars.NOTICE_NEGOTIABLE }}
+          CURRENT_CTC: ${{ vars.CURRENT_CTC }}
+          EXPECTED_CTC: ${{ vars.EXPECTED_CTC }}
+          CURRENT_LOCATION: ${{ vars.CURRENT_LOCATION }}
+          PREFERRED_LOCATIONS: ${{ vars.PREFERRED_LOCATIONS }}
+          WILLING_TO_RELOCATE: ${{ vars.WILLING_TO_RELOCATE }}
+          AVAILABLE_FOR_F2F: ${{ vars.AVAILABLE_FOR_F2F }}
+          CURRENT_DESIGNATION: ${{ vars.CURRENT_DESIGNATION }}
+          HIGHEST_EDUCATION: ${{ vars.HIGHEST_EDUCATION }}
+          DEFAULT_SKILL_EXPERIENCE_YEARS: ${{ vars.DEFAULT_SKILL_EXPERIENCE_YEARS }}
+          SKILL_EXPERIENCE_OVERRIDES: ${{ vars.SKILL_EXPERIENCE_OVERRIDES }}
+        run: node run.js
+
+      # Screenshots + result logs for debugging a run (downloadable from the
+      # Actions run page). Never contains your password.
+      - name: Upload run artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: naukri-run-${{ github.run_id }}
+          path: |
+            screenshots/
+            results.csv
+            results.json
+            chatbot-log.json
+            chatbot-answers.json
+          if-no-files-found: ignore
+          retention-days: 7

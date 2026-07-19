@@ -1,36 +1,78 @@
 # Naukri Auto-Apply (Playwright)
 
-Automates logging into your Naukri account, searching for jobs matching your keywords/locations/experience, filtering to jobs posted in the last 24 hours, and clicking Apply on the ones that Naukri can complete in one click ("Easy Apply" style).
+Automates logging into your Naukri account, **updating your resume** (which bumps
+your profile in recruiter searches), then searching for jobs matching your
+keywords/locations/experience, filtering to jobs posted in the last 24 hours, and
+clicking Apply on the ones that Naukri can complete in one click ("Easy Apply" style).
 
 ## Setup
 
-```powershell
-cd C:\Users\Mewurk\naukri-auto-apply
+```bash
+cd naukri-auto-apply
 npm install
 npx playwright install chromium
-Copy-Item .env.example .env
-notepad .env   # fill in your credentials & preferences
+cp .env.example .env
+# then edit .env — fill in your credentials & preferences
 ```
+
+Drop your resume in the project root as `resume.pdf` (or point `RESUME_PATH` in
+`.env` at another file — `.pdf/.doc/.docx/.rtf`, max 2MB).
 
 ## Run
 
-```powershell
+```bash
 # Dry run first — collects jobs, reports what it would apply to, applies to nothing.
 npm run dry
 
-# Real run.
+# Just update the resume on your Naukri profile.
+npm run resume
+
+# Just apply to jobs.
 npm start
+
+# Do both (resume update + apply) in one login — this is what the daily schedule runs.
+npm run daily
 ```
 
 Applied job IDs are saved in `applied.json` so re-runs skip them.
 Login session is cached in `storage-state.json` so you don't re-authenticate every run.
 
+## Resume update
+
+`npm run resume` (and the combined `npm run daily`) opens your Naukri profile and
+replaces your existing resume with the file at `RESUME_PATH` (default `resume.pdf`
+in the project root). Re-uploading also refreshes your profile's **"last updated"**
+timestamp, which is the signal Naukri uses to rank you higher in recruiter
+searches — so a daily resume refresh keeps you near the top.
+
+The upload uses Naukri's profile resume `<input type="file">`. If Naukri changes
+that control and you start seeing `no-file-input`, open your profile, Inspect the
+"Update resume" button, and add its selector to `FILE_INPUT_SELECTORS` in
+`resume.js`. Screenshots of each attempt land in `screenshots/`.
+
 ## What it does / doesn't do
 
 - ✅ Applies to Naukri "one-click" jobs.
 - ⏭️ Skips jobs that redirect to a company website (each company site is different — not automatable generically).
-- ⏭️ Skips jobs that pop up a chatbot with custom questions (they need human answers to be honest).
+- 💬 Jobs with a chatbot (extra questions) modal: by default (`SKIP_CHATBOT=true`) these are skipped. Set `SKIP_CHATBOT=false` to auto-answer them instead, using a fixed profile (notice period, CTC, location, relocation, skill experience, etc.) from `.env` — see "Chatbot auto-answer" below. No AI/API is used; it's pure keyword matching against your fixed answers.
 - ⚠️ Naukri may show OTP / captcha on login — the script pauses up to 3 minutes for you to solve it in the visible browser window.
+
+## Chatbot auto-answer
+
+When `SKIP_CHATBOT=false`, `handleChatbot()` in `apply.js` reads each bot question,
+matches it against a rule set (`CHATBOT_RULES`) covering notice period, CTC,
+current/preferred location, relocation, F2F availability, designation,
+education, and "experience in `<skill>`" questions, then answers from the
+matching `.env` field (e.g. `NOTICE_PERIOD`, `CURRENT_CTC`, `WILLING_TO_RELOCATE`).
+Skill-experience questions default to `DEFAULT_SKILL_EXPERIENCE_YEARS` (2 by
+default) unless overridden per-skill via `SKILL_EXPERIENCE_OVERRIDES` (JSON,
+e.g. `{"java":"4","aws":"1"}`).
+
+If a question doesn't match any rule, it is **never guessed** — the job is
+marked `skipped` with reason `chatbot-unmatched: <question text>`, a
+screenshot is saved, and every Q&A pair (matched or not) is appended to
+`chatbot-log.json` for review. Add a new entry to `CHATBOT_RULES` in
+`apply.js` to handle recurring unmatched questions.
 
 ## Tuning
 
@@ -48,11 +90,72 @@ Edit `.env`:
 - Your Naukri profile should already be complete (resume uploaded, current CTC / expected CTC / notice period filled in). Missing profile fields cause many applies to fail silently — the script screenshots those into `screenshots/`.
 - Selectors are Naukri's public DOM — they change. If you see many `no-apply-button` skips, open a job page manually, right-click the Apply button → Inspect, and update the selector in `apply.js`.
 
-## Scheduling every 24 hours
+## Scheduling — daily at 9 AM via GitHub Actions
 
-Windows Task Scheduler:
-1. Create a Basic Task → Daily.
-2. Action: **Start a program**.
-3. Program: `C:\Program Files\nodejs\node.exe`
-4. Arguments: `apply.js`
-5. Start in: `C:\Users\Mewurk\naukri-auto-apply`
+The repo ships a workflow at `.github/workflows/daily.yml` that runs
+`node run.js` (resume update + auto-apply) every day at **09:00 IST**
+(`cron: '30 3 * * *'` — GitHub cron is UTC-only, and 03:30 UTC = 09:00 IST). You
+can also trigger it by hand from the repo's **Actions** tab ("Run workflow").
+
+### ⚠️ Read this first — the headless caveat
+
+GitHub Actions runs **headless in the cloud**, so it can't help you past an
+OTP/captcha the way a visible local browser can. The cloud run therefore depends
+on a **valid saved session** (`storage-state.json`). You seed that session once
+(locally), store it as a secret, and the workflow caches it between runs. Naukri
+sessions expire every so often — when a run starts failing at login, re-seed the
+secret (below). If you'd rather not deal with this, run `npm run daily` from a
+local cron / launchd job instead, where a browser can pop up for OTP.
+
+### 1. Push the repo to GitHub
+
+Your `.gitignore` already excludes `.env`, `storage-state.json`, and the result
+logs, so no secrets get committed. **Keep the repo private** if you commit
+`resume.pdf` (it's your personal document) — or use the resume secret in step 3.
+
+### 2. Add repository secrets
+
+Repo → **Settings → Secrets and variables → Actions → Secrets**:
+
+| Secret | Value |
+| --- | --- |
+| `NAUKRI_EMAIL` | your Naukri email |
+| `NAUKRI_PASSWORD` | your Naukri password |
+| `NAUKRI_STORAGE_STATE_B64` | base64 of your local `storage-state.json` (see "Seeding the session secret") |
+| `RESUME_PDF_B64` | *(optional)* base64 of your resume, if you don't want to commit `resume.pdf` |
+
+### 3. Add repository variables (search config)
+
+Repo → **Settings → Secrets and variables → Actions → Variables**. These mirror
+the non-secret fields in `.env` (e.g. `KEYWORDS`, `LOCATIONS`, `MIN_EXPERIENCE`,
+`MAX_APPLIES_PER_KEYWORD`, `SKIP_CHATBOT`, and the chatbot-profile fields). Any you
+leave unset fall back to the defaults in `lib.js`. Set at least `KEYWORDS`.
+
+### Seeding the session secret
+
+Run the tool once locally so it logs in and writes `storage-state.json`, then
+base64-encode it into the secret:
+
+```bash
+npm start            # log in (solve any OTP/captcha in the visible browser)
+# macOS / Linux:
+base64 -i storage-state.json | pbcopy      # macOS — now paste into the secret
+base64 -w0 storage-state.json              # Linux — copy the output
+```
+
+Paste the result as `NAUKRI_STORAGE_STATE_B64`. To seed the resume secret the same
+way: `base64 -i resume.pdf | pbcopy` → `RESUME_PDF_B64`.
+
+After the first cloud run, the workflow caches the refreshed session (via
+`actions/cache`) and reuses it, so you only re-seed when the session actually
+expires. Each run's screenshots and result logs are uploaded as a downloadable
+**artifact** on the run page for debugging.
+
+### Alternative: local schedule (more reliable for OTP)
+
+On macOS, a `launchd`/cron job avoids the headless-OTP problem entirely:
+
+```cron
+# crontab -e  → run 9 AM daily (Mac must be awake)
+0 9 * * * cd /path/to/naukri-auto-apply && /usr/local/bin/node run.js >> cron.log 2>&1
+```

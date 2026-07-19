@@ -1,0 +1,18 @@
+{
+  "name": "naukri-auto-apply",
+  "version": "1.0.0",
+  "description": "Playwright automation to apply to Naukri jobs posted in the last 24 hours",
+  "main": "apply.js",
+  "type": "module",
+  "scripts": {
+    "start": "node apply.js",
+    "dry": "node apply.js --dry-run",
+    "resume": "node resume.js",
+    "daily": "node run.js",
+    "install-browsers": "playwright install chromium"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "playwright": "^1.61.1"
+  }
+}

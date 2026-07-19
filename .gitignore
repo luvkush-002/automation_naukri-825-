@@ -1,0 +1,9 @@
+node_modules/
+.env
+applied.json
+results.csv
+results.json
+screenshots/
+storage-state.json
+chatbot-log.json
+chatbot-answers.json
