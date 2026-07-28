@@ -9,6 +9,7 @@
     "dry": "node apply.js --dry-run",
     "resume": "node resume.js",
     "daily": "node run.js",
+    "export-session": "node export-session.js",
     "install-browsers": "playwright install chromium"
   },
   "dependencies": {

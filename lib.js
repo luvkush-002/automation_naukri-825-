@@ -211,6 +211,17 @@ async function manualLoginFallback(page) {
   if (cfg.headless) {
     throw new Error('Login failed and HEADLESS=true — set HEADLESS=false in .env so you can complete login manually.');
   }
+  // On CI we run headed (under xvfb) purely to dodge Akamai's headless
+  // fingerprinting — there is still no human to solve an OTP, so fail fast
+  // instead of burning 5 minutes waiting for one.
+  if (process.env.CI) {
+    await screenshot(page, 'login-blocked-ci');
+    throw new Error(
+      'Login could not complete on CI. Usually means the seeded session expired ' +
+      '(re-run `npm run export-session` and update NAUKRI_STORAGE_STATE_B64) or ' +
+      'Naukri/Akamai blocked the runner — check screenshots/login-blocked-ci.png.'
+    );
+  }
   log('👉 Please complete the login in the visible browser window.');
   log('   Waiting up to 5 minutes for you to reach Naukri homepage/profile.');
   try {

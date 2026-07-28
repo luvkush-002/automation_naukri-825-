@@ -27,8 +27,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # xvfb lets us run Chromium *headed* on a headless runner. Naukri sits
+      # behind Akamai Bot Manager, which fingerprints headless Chromium and
+      # serves "Access Denied" instead of the login page — so headless can
+      # never work here. --with-deps usually pulls xvfb in; install it
+      # explicitly so the run doesn't depend on that.
       - name: Install Playwright Chromium
-        run: npx playwright install --with-deps chromium
+        run: |
+          npx playwright install --with-deps chromium
+          sudo apt-get install -y xvfb
 
       # Persist the logged-in session between daily runs so we don't log in from
       # scratch every time. Rolling key = each run saves a fresh cache and the
@@ -73,7 +80,8 @@ jobs:
         env:
           NAUKRI_EMAIL: ${{ secrets.NAUKRI_EMAIL }}
           NAUKRI_PASSWORD: ${{ secrets.NAUKRI_PASSWORD }}
-          HEADLESS: 'true'
+          # Headed — required to get past Akamai. xvfb-run supplies the display.
+          HEADLESS: 'false'
           RESUME_PATH: ${{ vars.RESUME_PATH || 'resume.pdf' }}
           # --- Search config (set these as repository Variables; sensible
           #     defaults live in lib.js if you leave them unset) ---
@@ -99,7 +107,7 @@ jobs:
           HIGHEST_EDUCATION: ${{ vars.HIGHEST_EDUCATION }}
           DEFAULT_SKILL_EXPERIENCE_YEARS: ${{ vars.DEFAULT_SKILL_EXPERIENCE_YEARS }}
           SKILL_EXPERIENCE_OVERRIDES: ${{ vars.SKILL_EXPERIENCE_OVERRIDES }}
-        run: node run.js
+        run: xvfb-run -a --server-args="-screen 0 1366x820x24" node run.js
 
       # Screenshots + result logs for debugging a run (downloadable from the
       # Actions run page). Never contains your password.
