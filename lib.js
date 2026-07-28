@@ -104,6 +104,14 @@ export async function login(page) {
   log(`   at URL: ${page.url()}`);
   await screenshot(page, 'login-page');
 
+  // If the session is actually still valid, Naukri bounces /nlogin/login to a
+  // logged-in page. Detect that instead of waiting 20s for a password field
+  // that will never render here.
+  if (/mnjuser|homepage|myprofile/i.test(page.url())) {
+    log('✅ Already logged in (login page redirected to a logged-in page).');
+    return;
+  }
+
   const pwInput = page.locator('input[type="password"]').first();
   try {
     await pwInput.waitFor({ state: 'visible', timeout: 20000 });
@@ -277,7 +285,16 @@ export async function ensureLoggedIn(context) {
   const page = await context.newPage();
   try {
     await page.goto('https://www.naukri.com/mnjuser/homepage', { waitUntil: 'domcontentloaded' });
-    const loggedIn = await page.locator('a[href*="/mnjuser/profile"], .user-name, #root .nI-gNb-drawer').first().count();
+    // The homepage is a React app: the logged-in markers attach ~800ms AFTER
+    // DOMContentLoaded. Counting them immediately always returned 0, so every
+    // run did a pointless re-login — which then redirects back here (no
+    // password field) and fails with a misleading error. Wait for them.
+    const loggedIn = await page
+      .locator('a[href*="/mnjuser/profile"], .user-name, #root .nI-gNb-drawer')
+      .first()
+      .waitFor({ state: 'attached', timeout: 15000 })
+      .then(() => true)
+      .catch(() => false);
     if (!loggedIn) await login(page);
     await context.storageState({ path: STORAGE_STATE });
   } catch (e) {
