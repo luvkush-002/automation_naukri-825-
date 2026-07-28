@@ -37,13 +37,18 @@ jobs:
           npx playwright install --with-deps chromium
           sudo apt-get install -y xvfb
 
-      # Persist the logged-in session between daily runs so we don't log in from
-      # scratch every time. Rolling key = each run saves a fresh cache and the
-      # next run restores the newest one.
-      - name: Restore Naukri session
+      # Persist state between daily runs. Rolling key = each run saves a fresh
+      # cache and the next run restores the newest one.
+      #   storage-state.json — the logged-in session, so we don't re-login daily.
+      #   applied.json       — job IDs already applied to. Both are gitignored,
+      #                        so without this the runner starts blank every day
+      #                        and re-processes yesterday's jobs.
+      - name: Restore Naukri session + applied history
         uses: actions/cache@v4
         with:
-          path: storage-state.json
+          path: |
+            storage-state.json
+            applied.json
           key: naukri-session-${{ github.run_id }}
           restore-keys: |
             naukri-session-
