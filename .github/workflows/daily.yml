@@ -4,7 +4,7 @@ name: Naukri daily
 # You can also trigger it by hand from the Actions tab (workflow_dispatch).
 on:
   schedule:
-    - cron: '30 3 * * *'
+    - cron: '13 3 * * *'. # ~8:43 AM IST entry into queue
   workflow_dispatch: {}
 
 # Never let two daily runs overlap (they'd fight over the shared session).
