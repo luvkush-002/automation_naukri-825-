@@ -7,6 +7,7 @@ import {
 } from './lib.js';
 import { updateResume } from './resume.js';
 import { runApply } from './apply.js';
+import { runEarlyAccess } from './early-access.js';
 
 (async () => {
   requireCreds();
@@ -30,6 +31,18 @@ import { runApply } from './apply.js';
       await runApply(context, page);
     } else {
       log('⏭️  No KEYWORDS set — skipping the apply flow.');
+    }
+
+    // 3) Early access roles — share interest per the salary rule.
+    //    Non-fatal: a failure here should not fail the whole daily run.
+    if (cfg.earlyAccess) {
+      try {
+        await runEarlyAccess(context, page);
+      } catch (e) {
+        log('⚠️  Early access flow threw:', e.message.slice(0, 200));
+      }
+    } else {
+      log('⏭️  EARLY_ACCESS=false — skipping early access roles.');
     }
 
     // Persist the (refreshed) session so the next run reuses it.

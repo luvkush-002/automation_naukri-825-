@@ -1,6 +1,7 @@
 node_modules/
 .env
 applied.json
+early-access-shared.json
 results.csv
 results.json
 screenshots/

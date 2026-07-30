@@ -30,7 +30,12 @@ npm run resume
 # Just apply to jobs.
 npm start
 
-# Do both (resume update + apply) in one login — this is what the daily schedule runs.
+# Just share interest on Early access roles (see "Early access roles" below).
+npm run early-access
+npm run early-access-dry   # report what it would share interest on, click nothing
+
+# Do all of it (resume update + apply + early-access interest) in one login —
+# this is what the daily schedule runs.
 npm run daily
 ```
 
@@ -49,6 +54,24 @@ The upload uses Naukri's profile resume `<input type="file">`. If Naukri changes
 that control and you start seeing `no-file-input`, open your profile, Inspect the
 "Update resume" button, and add its selector to `FILE_INPUT_SELECTORS` in
 `resume.js`. Screenshots of each attempt land in `screenshots/`.
+
+## Early access roles
+
+After the apply flow, the daily run opens Naukri's **"Early access roles"**
+section and clicks **Share interest** on roles matching this salary rule
+(amounts in LPA, i.e. lakhs per annum):
+
+- Salary range shown → share interest when the **lower bound ≥ 5** OR the
+  **upper bound ≥ 9** (e.g. `5-8 Lacs PA` and `3-9 Lacs PA` qualify;
+  `3-7 Lacs PA` doesn't).
+- No salary range shown ("Not disclosed") → share interest anyway.
+
+Thresholds are configurable via `EARLY_ACCESS_MIN_SALARY_LOWER` /
+`EARLY_ACCESS_MIN_SALARY_UPPER` in `.env`, the per-run cap via
+`EARLY_ACCESS_MAX_INTERESTS`, and the whole step can be turned off with
+`EARLY_ACCESS=false`. Roles already interest-shared are remembered in
+`early-access-shared.json` so re-runs skip them. Run it standalone with
+`npm run early-access` (or `npm run early-access-dry` to preview).
 
 ## What it does / doesn't do
 

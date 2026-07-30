@@ -42,16 +42,18 @@ jobs:
 
       # Persist state between daily runs. Rolling key = each run saves a fresh
       # cache and the next run restores the newest one.
-      #   storage-state.json — the logged-in session, so we don't re-login daily.
-      #   applied.json       — job IDs already applied to. Both are gitignored,
-      #                        so without this the runner starts blank every day
-      #                        and re-processes yesterday's jobs.
+      #   storage-state.json        — the logged-in session, so we don't re-login daily.
+      #   applied.json              — job IDs already applied to.
+      #   early-access-shared.json  — early-access roles already interest-shared.
+      #   All gitignored, so without this the runner starts blank every day
+      #   and re-processes yesterday's jobs.
       - name: Restore Naukri session + applied history
         uses: actions/cache@v4
         with:
           path: |
             storage-state.json
             applied.json
+            early-access-shared.json
           key: naukri-session-${{ github.run_id }}
           restore-keys: |
             naukri-session-
@@ -101,6 +103,11 @@ jobs:
           MAX_APPLIES_PER_KEYWORD: ${{ vars.MAX_APPLIES_PER_KEYWORD }}
           SKIP_EXTERNAL: ${{ vars.SKIP_EXTERNAL }}
           SKIP_CHATBOT: ${{ vars.SKIP_CHATBOT }}
+          # --- Early access roles (share-interest) ---
+          EARLY_ACCESS: ${{ vars.EARLY_ACCESS }}
+          EARLY_ACCESS_MIN_SALARY_LOWER: ${{ vars.EARLY_ACCESS_MIN_SALARY_LOWER }}
+          EARLY_ACCESS_MIN_SALARY_UPPER: ${{ vars.EARLY_ACCESS_MIN_SALARY_UPPER }}
+          EARLY_ACCESS_MAX_INTERESTS: ${{ vars.EARLY_ACCESS_MAX_INTERESTS }}
           # --- Chatbot profile (only used when SKIP_CHATBOT=false) ---
           TOTAL_EXPERIENCE_YEARS: ${{ vars.TOTAL_EXPERIENCE_YEARS }}
           NOTICE_PERIOD: ${{ vars.NOTICE_PERIOD }}

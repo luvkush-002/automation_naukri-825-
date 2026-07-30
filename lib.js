@@ -44,6 +44,14 @@ export const cfg = {
   // Local resume file to push to your Naukri profile (default: resume.pdf in
   // the project root). Naukri accepts .doc/.docx/.rtf/.pdf up to 2MB.
   resumePath: resolveInProject(process.env.RESUME_PATH || 'resume.pdf'),
+  // --- Early access roles (share-interest) flow, runs after apply ---
+  // Share interest when the salary range's lower bound is >= eaMinSalaryLower
+  // OR its upper bound is >= eaMinSalaryUpper (both in LPA), or when the
+  // card shows no salary range at all ("Not disclosed").
+  earlyAccess: (process.env.EARLY_ACCESS || 'true') === 'true',
+  eaMinSalaryLower: parseFloat(process.env.EARLY_ACCESS_MIN_SALARY_LOWER || '5'),
+  eaMinSalaryUpper: parseFloat(process.env.EARLY_ACCESS_MIN_SALARY_UPPER || '9'),
+  eaMaxInterests: parseInt(process.env.EARLY_ACCESS_MAX_INTERESTS || '50', 10),
   // Static profile used to auto-answer Naukri's post-apply chatbot questions
   // (notice period, CTC, location, relocation, skill experience, etc.) with
   // no AI/API involved — pure keyword-matching against your fixed answers.
