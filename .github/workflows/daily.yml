@@ -18,7 +18,7 @@ concurrency:
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
@@ -108,6 +108,10 @@ jobs:
           EARLY_ACCESS_MIN_SALARY_LOWER: ${{ vars.EARLY_ACCESS_MIN_SALARY_LOWER }}
           EARLY_ACCESS_MIN_SALARY_UPPER: ${{ vars.EARLY_ACCESS_MIN_SALARY_UPPER }}
           EARLY_ACCESS_MAX_INTERESTS: ${{ vars.EARLY_ACCESS_MAX_INTERESTS }}
+          # --- Recommended jobs (homepage "View all" -> every tab) ---
+          RECOMMENDED: ${{ vars.RECOMMENDED }}
+          RECOMMENDED_FILTER: ${{ vars.RECOMMENDED_FILTER }}
+          RECOMMENDED_MAX_PER_TAB: ${{ vars.RECOMMENDED_MAX_PER_TAB }}
           # --- Chatbot profile (only used when SKIP_CHATBOT=false) ---
           TOTAL_EXPERIENCE_YEARS: ${{ vars.TOTAL_EXPERIENCE_YEARS }}
           NOTICE_PERIOD: ${{ vars.NOTICE_PERIOD }}

@@ -52,6 +52,14 @@ export const cfg = {
   eaMinSalaryLower: parseFloat(process.env.EARLY_ACCESS_MIN_SALARY_LOWER || '5'),
   eaMinSalaryUpper: parseFloat(process.env.EARLY_ACCESS_MIN_SALARY_UPPER || '9'),
   eaMaxInterests: parseInt(process.env.EARLY_ACCESS_MAX_INTERESTS || '50', 10),
+  // --- Recommended jobs flow (homepage "View all" -> each tab) ---
+  // Applies to jobs on every recommended-jobs tab (Profile, Applies,
+  // Preferences, You might like). By default applies to all of them; set
+  // RECOMMENDED_FILTER=true to reuse the search flow's role/experience filter.
+  recommended: (process.env.RECOMMENDED || 'true') === 'true',
+  recommendedFilter: (process.env.RECOMMENDED_FILTER || 'false') === 'true',
+  // Per-tab cap on apply attempts in one run (0 = no cap).
+  recommendedMaxPerTab: parseInt(process.env.RECOMMENDED_MAX_PER_TAB || '25', 10),
   // Static profile used to auto-answer Naukri's post-apply chatbot questions
   // (notice period, CTC, location, relocation, skill experience, etc.) with
   // no AI/API involved — pure keyword-matching against your fixed answers.

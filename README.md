@@ -30,11 +30,15 @@ npm run resume
 # Just apply to jobs.
 npm start
 
+# Just apply to Recommended jobs (see "Recommended jobs" below).
+npm run recommended
+npm run recommended-dry   # report what it would apply to, click nothing
+
 # Just share interest on Early access roles (see "Early access roles" below).
 npm run early-access
 npm run early-access-dry   # report what it would share interest on, click nothing
 
-# Do all of it (resume update + apply + early-access interest) in one login —
+# Do all of it (resume update + apply + recommended + early-access interest) in one login —
 # this is what the daily schedule runs.
 npm run daily
 ```
@@ -54,6 +58,24 @@ The upload uses Naukri's profile resume `<input type="file">`. If Naukri changes
 that control and you start seeing `no-file-input`, open your profile, Inspect the
 "Update resume" button, and add its selector to `FILE_INPUT_SELECTORS` in
 `resume.js`. Screenshots of each attempt land in `screenshots/`.
+
+## Recommended jobs
+
+After the search-based apply flow, the daily run opens the homepage, clicks
+**View all** on the "Jobs based on your profile / applies" widget, and lands on
+Naukri's **Recommended jobs** page. It then walks the tabs one by one —
+**Profile → Applies → Preferences → You might like** — and applies to every job
+on each tab (same apply logic as the search flow: one-click applies, chatbot
+handling per `SKIP_CHATBOT`, external-site jobs skipped per `SKIP_EXTERNAL`).
+
+- Jobs that appear in several tabs are only tried once; everything handled is
+  recorded in `applied.json`, so re-runs skip it.
+- By default **every** recommended job is applied to. Set
+  `RECOMMENDED_FILTER=true` to only apply to jobs that pass the search flow's
+  role-title + `MIN/MAX_EXPERIENCE` filter.
+- `RECOMMENDED_MAX_PER_TAB` (default 25, `0` = no cap) limits apply attempts per
+  tab per run. Naukri also enforces its own daily apply limit.
+- Turn the step off with `RECOMMENDED=false`.
 
 ## Early access roles
 

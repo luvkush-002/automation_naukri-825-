@@ -7,6 +7,7 @@ import {
 } from './lib.js';
 import { updateResume } from './resume.js';
 import { runApply } from './apply.js';
+import { runRecommended } from './recommended.js';
 import { runEarlyAccess } from './early-access.js';
 
 (async () => {
@@ -33,7 +34,19 @@ import { runEarlyAccess } from './early-access.js';
       log('⏭️  No KEYWORDS set — skipping the apply flow.');
     }
 
-    // 3) Early access roles — share interest per the salary rule.
+    // 3) Recommended jobs — homepage "View all", then every tab.
+    //    Non-fatal, same as early access below.
+    if (cfg.recommended) {
+      try {
+        await runRecommended(context, page);
+      } catch (e) {
+        log('⚠️  Recommended jobs flow threw:', e.message.slice(0, 200));
+      }
+    } else {
+      log('⏭️  RECOMMENDED=false — skipping recommended jobs.');
+    }
+
+    // 4) Early access roles — share interest per the salary rule.
     //    Non-fatal: a failure here should not fail the whole daily run.
     if (cfg.earlyAccess) {
       try {

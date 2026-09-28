@@ -17,11 +17,11 @@ const RESULTS_JSON = path.join(__dirname, 'results.json');
 const CHATBOT_LOG = path.join(__dirname, 'chatbot-log.json');
 const CHATBOT_ANSWERS = path.join(__dirname, 'chatbot-answers.json');
 
-function loadApplied() {
+export function loadApplied() {
   try { return new Set(JSON.parse(fs.readFileSync(APPLIED_LOG, 'utf8'))); }
   catch { return new Set(); }
 }
-function saveApplied(set) {
+export function saveApplied(set) {
   fs.writeFileSync(APPLIED_LOG, JSON.stringify([...set], null, 2));
 }
 
@@ -34,7 +34,7 @@ function ensureCsvHeader() {
     fs.writeFileSync(RESULTS_CSV, 'timestamp,jobId,role,company,status,reason,url\n');
   }
 }
-function appendResult(r) {
+export function appendResult(r) {
   ensureCsvHeader();
   const row = [
     new Date().toISOString(),
@@ -104,7 +104,7 @@ const EXCLUDE_TITLE_PATTERNS = [
   /\bqa\s*engineer\b(?!.*java)/i, /\bsenior\b/i, /\blead\b/i, /\bmanager\b/i, /\barchitect\b/i,
 ];
 
-function titleIsRelevant(title, skillText) {
+export function titleIsRelevant(title, skillText) {
   const t = title || '';
   if (EXCLUDE_TITLE_PATTERNS.some(re => re.test(t))) return false;
   if (!ROLE_TITLE_PATTERNS.some(re => re.test(t))) return false;
@@ -116,7 +116,7 @@ function titleIsRelevant(title, skillText) {
 }
 
 // Parses experience text like "1-3 Yrs", "2-5 Yrs", "3+ Yrs" from a job card.
-function extractExperienceRange(text) {
+export function extractExperienceRange(text) {
   if (!text) return null;
   let m = text.match(/(\d+)\s*-\s*(\d+)\s*Yrs?/i);
   if (m) return { min: +m[1], max: +m[2] };
@@ -128,7 +128,7 @@ function extractExperienceRange(text) {
 // Keeps jobs whose experience band overlaps the configured [minExp, maxExp].
 // Unknown/unparsed experience text is kept (fails open) so a DOM/selector
 // change doesn't silently drop every job — but it's logged as a warning.
-function experienceMatches(range) {
+export function experienceMatches(range) {
   if (!range) return true;
   return range.min <= cfg.maxExp && range.max >= cfg.minExp;
 }
@@ -367,7 +367,10 @@ async function handleChatbot(page, job) {
   for (let step = 0; step < MAX_STEPS; step++) {
     await jitter(900, 1500);
 
-    const successNow = await page.locator('text=/successfully applied/i, text=/application submitted/i').first().count();
+    // Playwright can't mix text=/regex/ into a comma-separated selector list,
+    // so text matches are combined with .or() instead.
+    const successNow = await page.getByText(/successfully applied/i)
+      .or(page.getByText(/application submitted/i)).first().count();
     if (successNow) return { status: 'applied', qaLog };
 
     const stillThere = await drawer.count();
@@ -461,11 +464,13 @@ async function handleChatbot(page, job) {
 }
 
 // ---------- Apply to a single job ----------
-async function applyToJob(context, job) {
-  const page = await context.newPage();
+// Pass `existingPage` when the job detail page is already open (e.g. the tab a
+// recommended-jobs card opened); it's closed when done, same as a fresh page.
+export async function applyToJob(context, job, existingPage = null) {
+  const page = existingPage || await context.newPage();
   const outcome = { ...job, status: 'unknown', reason: '' };
   try {
-    await page.goto(job.url, { waitUntil: 'domcontentloaded', timeout: 45000 });
+    if (!existingPage) await page.goto(job.url, { waitUntil: 'domcontentloaded', timeout: 45000 });
     await jitter(1800, 2800);
 
     // Ensure we have company name (fallback to job detail page).
@@ -483,7 +488,8 @@ async function applyToJob(context, job) {
 
     if (!(await applyBtn.count())) {
       // Already applied?
-      const already = await page.locator('button:has-text("Applied"), text=/already applied/i, .already-applied').first().count();
+      const already = await page.locator('button:has-text("Applied"), .already-applied')
+        .or(page.getByText(/already applied/i)).first().count();
       if (already) { outcome.status = 'already-applied'; return outcome; }
       outcome.status = 'skipped';
       outcome.reason = 'no-apply-button';
@@ -553,14 +559,9 @@ async function applyToJob(context, job) {
     }
 
     // Success signals — Naukri shows a green toast or updates the button.
-    const successLocator = page.locator(
-      'text=/you have successfully applied/i, ' +
-      'text=/application submitted/i, ' +
-      'text=/applied successfully/i, ' +
-      '.apply-status-success, ' +
-      'button:has-text("Applied"), ' +
-      'text=/already applied/i'
-    ).first();
+    const successLocator = page.locator('.apply-status-success, button:has-text("Applied")')
+      .or(page.getByText(/you have successfully applied|application submitted|applied successfully|already applied/i))
+      .first();
 
     try {
       await successLocator.waitFor({ timeout: 8000 });

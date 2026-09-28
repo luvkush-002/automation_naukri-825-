@@ -8,6 +8,8 @@
     "start": "node apply.js",
     "dry": "node apply.js --dry-run",
     "resume": "node resume.js",
+    "recommended": "node recommended.js",
+    "recommended-dry": "node recommended.js --dry-run",
     "early-access": "node early-access.js",
     "early-access-dry": "node early-access.js --dry-run",
     "daily": "node run.js",
