@@ -135,11 +135,12 @@ Edit `.env`:
 - Your Naukri profile should already be complete (resume uploaded, current CTC / expected CTC / notice period filled in). Missing profile fields cause many applies to fail silently — the script screenshots those into `screenshots/`.
 - Selectors are Naukri's public DOM — they change. If you see many `no-apply-button` skips, open a job page manually, right-click the Apply button → Inspect, and update the selector in `apply.js`.
 
-## Scheduling — twice daily via GitHub Actions
+## Scheduling — four times daily via GitHub Actions
 
 The repo ships a workflow at `.github/workflows/daily.yml` that runs
-`node run.js` (resume update + auto-apply) every day at **09:13 and 15:13 IST**
-(`cron: '43 3 * * *'` and `cron: '43 9 * * *'` — GitHub cron is UTC-only).
+`node run.js` (resume update + auto-apply) every day at **05:00, 08:00, 13:00,
+and 15:00 IST**. GitHub cron is UTC-only; the corresponding schedules are
+`'30 23 * * *'`, `'30 2 * * *'`, `'30 7 * * *'`, and `'30 9 * * *'`.
 You can also trigger it by hand from the repo's **Actions** tab ("Run workflow").
 
 ### ⚠️ Read this first — the headless caveat
